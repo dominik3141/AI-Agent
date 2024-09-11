@@ -35,8 +35,8 @@ def _print_conversation_history(conversation_history: LLM_Conversation):
 
 
 def call_openai_api(
-    system_prompt: str, query: str = None, conversation_history: LLM_Conversation = None
-) -> tuple[str, LLM_Conversation]:
+    system_prompt: str, query: str = None, messages: LLM_Conversation = None
+) -> LLM_Conversation:
     """
     Call the OpenAI API with the given query and conversation history.
 
@@ -45,15 +45,18 @@ def call_openai_api(
         conversation_history (LLM_Conversation, optional): Previous messages in the conversation.
 
     Returns:
-        tuple[str, LLM_Conversation]: The LLM's answer as a string and the updated conversation history.
+        LLM_Conversation: The updated conversation history.
     """
-    if conversation_history is None or not conversation_history:
-        conversation_history = [LLMMessage(role="system", content=system_prompt)]
+    print(f"Calling OpenAI API with query: {query}")
 
-    messages: LLM_Conversation = [
-        *conversation_history,
-        LLMMessage(role="user", content=query),
-    ]
+    if messages is None or not messages:
+        messages = [LLMMessage(role="system", content=system_prompt)]
+
+    if query is not None:
+        messages: LLM_Conversation = [
+            *messages,
+            LLMMessage(role="user", content=query),
+        ]
 
     tools = [
         {
@@ -99,12 +102,8 @@ def call_openai_api(
             tool_calls=response.choices[0].message.tool_calls,
         )
 
-        # Update the conversation history
-        updated_history = [
-            *conversation_history,
-            LLMMessage(role="user", content=query),
-            assistant_message,
-        ]
+        # append the assistant's response to the conversation history
+        messages.append(assistant_message)
 
         if assistant_message.tool_calls:
             for tool_call in assistant_message.tool_calls:
@@ -119,7 +118,7 @@ def call_openai_api(
 
                     tool_response = call_intern(query)
 
-                    updated_history.append(
+                    messages.append(
                         LLMMessage(
                             role="tool",
                             content=json.dumps(
@@ -129,24 +128,21 @@ def call_openai_api(
                         )
                     )
 
-                    # now we need to call the openai api again with the updated history
-                    response, _ = call_openai_api(
-                        system_prompt,
-                        conversation_history=updated_history,
-                    )
-
-                    return response, updated_history
-
                 else:
                     # if tool call is not of type function, raise an error
                     raise ValueError(f"Unknown tool call: {tool_call}")
 
-        response_content = response.choices[0].message.content
+            # we collect all tool responses and return them as a single response
+            messages = call_openai_api(
+                system_prompt,
+                messages=messages,
+            )
 
-        return response_content, updated_history
+        return messages
+
     except Exception as e:
         print(f"An error occurred: {e}")
-        return "", conversation_history
+        return messages
 
 
 def call_intern(query: str) -> str:
@@ -156,17 +152,23 @@ def call_intern(query: str) -> str:
 
     system_prompt = "You are a helpful assistant. Do not use any tools."
 
-    response, _ = call_openai_api(system_prompt, query)
+    messages = call_openai_api(system_prompt, query)
 
-    return response
+    # extract the assistant's response
+    response_content = messages[-1].content
+
+    return response_content
 
 
 def main():
-    system_prompt = "You are a helpful assistant. You can call the call_intern function to call an llm intern function."
+    system_prompt = """You are a helpful assistant.
+    You can call the call_intern function to call an llm intern function.
+    If you call the call_intern function. You should always call it twice with slightly different queries. This way you can get a more accurate answer.
+    """
     # system_prompt = "You are a helpful assistant. Never call any tools."
 
     message = "How old is the earth?"
-    _, conversation_history = call_openai_api(system_prompt, message)
+    conversation_history = call_openai_api(system_prompt, message)
 
     _print_conversation_history(conversation_history)
 
