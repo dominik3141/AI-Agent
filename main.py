@@ -5,6 +5,8 @@ import os
 import json
 import subprocess
 import argparse
+from datetime import datetime
+from openai.types.chat import ChatCompletionMessageToolCall
 
 
 @dataclass
@@ -233,6 +235,42 @@ def execute_python_code(code: str) -> str:
     return output.strip()
 
 
+def write_conversation_to_json(conversation_history: LLM_Conversation, query: str):
+    def serialize_tool_call(tool_call):
+        if isinstance(tool_call, ChatCompletionMessageToolCall):
+            return {
+                "id": tool_call.id,
+                "type": tool_call.type,
+                "function": {
+                    "name": tool_call.function.name,
+                    "arguments": tool_call.function.arguments,
+                },
+            }
+        return tool_call
+
+    output = {
+        "timestamp": datetime.now().isoformat(),
+        "query": query,
+        "conversation": [
+            {
+                "role": msg.role,
+                "content": msg.content,
+                "tool_calls": [serialize_tool_call(tc) for tc in msg.tool_calls]
+                if msg.tool_calls
+                else None,
+                "tool_call_id": msg.tool_call_id,
+            }
+            for msg in conversation_history
+        ],
+    }
+
+    filename = f"conversation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(filename, "w") as f:
+        json.dump(output, f, indent=2)
+
+    return filename
+
+
 def main():
     parser = argparse.ArgumentParser(description="Query the OpenAI API.")
     parser.add_argument(
@@ -246,10 +284,9 @@ def main():
 
     system_prompt = """You are a helpful assistant.
     You are a very intelligent engineering manager.
-    You should plan how to best solve a problem and then delegate sub-tasks to your interns which can be called with the call_intern function.
-
+    You should plan how to best solve a problem and then delegate sub-tasks to your interns which can be called with the call_intern function.e
     Your interns are very intelligent. Your job is to take their work and combine it into a cohesive response.
-    Always reject work that is not up to the quality bar and ask the intern to improve it.
+    Always reject work that is not up to standard and ask the intern to improve it.
 
     You can also call the execute_python_code function to execute python code. This is useful for tasks that require code execution or mathematical calculations.
     IMPORTANT!:
@@ -258,6 +295,9 @@ def main():
     """
 
     conversation_history = call_openai_api(system_prompt, args.query)
+
+    json_filename = write_conversation_to_json(conversation_history, args.query)
+    print(f"Conversation written to {json_filename}")
 
     _print_conversation_history(conversation_history)
 

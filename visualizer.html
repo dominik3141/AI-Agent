@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversation Visualizer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        h1,
+        h2 {
+            color: #2c3e50;
+        }
+
+        .stats {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats h2 {
+            margin-top: 0;
+        }
+
+        .message {
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .system {
+            background-color: #ecf0f1;
+            border-left: 5px solid #95a5a6;
+        }
+
+        .user {
+            background-color: #e8f4f8;
+            border-left: 5px solid #3498db;
+        }
+
+        .assistant {
+            background-color: #eafaf1;
+            border-left: 5px solid #2ecc71;
+        }
+
+        .tool {
+            background-color: #fef9e7;
+            border-left: 5px solid #f1c40f;
+        }
+
+        .tool-call {
+            background-color: #f9f2f4;
+            border-left: 5px solid #9b59b6;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+
+        h3,
+        h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Conversation Visualizer</h1>
+    <input type="file" id="fileInput" accept=".json">
+    <div id="stats" class="stats"></div>
+    <div id="conversation"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = JSON.parse(e.target.result);
+                visualizeConversation(data);
+            };
+            reader.readAsText(file);
+        });
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function visualizeConversation(data) {
+            const statsDiv = document.getElementById('stats');
+            const conversationDiv = document.getElementById('conversation');
+
+            // Calculate statistics
+            const stats = calculateStats(data.conversation);
+
+            // Display statistics
+            statsDiv.innerHTML = `
+                <h2>Statistics</h2>
+                <p>Total messages: ${stats.totalMessages}</p>
+                <p>Total tool calls: ${stats.totalToolCalls}</p>
+                <h3>Tool calls breakdown:</h3>
+                <ul>
+                    ${Object.entries(stats.toolCallsPerTool).map(([tool, count]) =>
+                `<li>${escapeHtml(tool)}: ${count}</li>`
+            ).join('')}
+                </ul>
+            `;
+
+            conversationDiv.innerHTML = `
+                <h2>Query: ${escapeHtml(data.query)}</h2>
+                <p>Timestamp: ${data.timestamp}</p>
+            `;
+
+            data.conversation.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${msg.role}`;
+                messageDiv.innerHTML = `
+                    <h3>${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}</h3>
+                    <pre>${escapeHtml(msg.content || '')}</pre>
+                `;
+
+                if (msg.tool_calls) {
+                    messageDiv.innerHTML += `<h4>Tool Calls:</h4>`;
+                    msg.tool_calls.forEach(tool_call => {
+                        messageDiv.innerHTML += `
+                            <div class="tool-call">
+                                <p>Function: ${escapeHtml(tool_call.function.name)}</p>
+                                <pre>Arguments: ${escapeHtml(tool_call.function.arguments)}</pre>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (msg.tool_call_id) {
+                    messageDiv.innerHTML += `<p>Tool Call ID: ${escapeHtml(msg.tool_call_id)}</p>`;
+                }
+
+                conversationDiv.appendChild(messageDiv);
+            });
+        }
+
+        function calculateStats(conversation) {
+            const stats = {
+                totalMessages: conversation.length,
+                totalToolCalls: 0,
+                toolCallsPerTool: {}
+            };
+
+            conversation.forEach(msg => {
+                if (msg.tool_calls) {
+                    stats.totalToolCalls += msg.tool_calls.length;
+                    msg.tool_calls.forEach(tool_call => {
+                        const toolName = tool_call.function.name;
+                        stats.toolCallsPerTool[toolName] = (stats.toolCallsPerTool[toolName] || 0) + 1;
+                    });
+                }
+            });
+
+            return stats;
+        }
+    </script>
+</body>
+
+</html>
