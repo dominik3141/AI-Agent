@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import os
 import json
 import subprocess
+import argparse
 
 
 @dataclass
@@ -233,10 +234,22 @@ def execute_python_code(code: str) -> str:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Query the OpenAI API.")
+    parser.add_argument(
+        "-q",
+        "--query",
+        type=str,
+        required=True,
+        help="The query to ask the OpenAI API.",
+    )
+    args = parser.parse_args()
+
     system_prompt = """You are a helpful assistant.
-    You can call the call_intern function to call an llm intern function.
-    For all questions, you should wonder who would be the two best people to ask this question to.
-    Then call the call_intern function with the question and the system prompt that descibes the role of the two best people.
+    You are a very intelligent engineering manager.
+    You should plan how to best solve a problem and then delegate sub-tasks to your interns which can be called with the call_intern function.
+
+    Your interns are very intelligent. Your job is to take their work and combine it into a cohesive response.
+    Always reject work that is not up to the quality bar and ask the intern to improve it.
 
     You can also call the execute_python_code function to execute python code. This is useful for tasks that require code execution or mathematical calculations.
     IMPORTANT!:
@@ -244,8 +257,7 @@ def main():
     If you don't do this, the result will not be returned.
     """
 
-    message = "How long does it take for a penny to fall 100 feet?"
-    conversation_history = call_openai_api(system_prompt, message)
+    conversation_history = call_openai_api(system_prompt, args.query)
 
     _print_conversation_history(conversation_history)
 
