@@ -3,6 +3,7 @@ from typing import List, TypeAlias, Optional, Dict, Any
 from dataclasses import dataclass
 import os
 import json
+import subprocess
 
 
 @dataclass
@@ -79,7 +80,24 @@ def call_openai_api(
                     "required": ["query", "system_prompt"],
                 },
             },
-        }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "execute_python_code",
+                "description": "Execute Python code and return the result. Remember to always use print() in your code to return the result.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The Python code to execute.",
+                        },
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
     ]
 
     try:
@@ -134,6 +152,19 @@ def call_openai_api(
                         )
                     )
 
+                elif tool_call.function.name == "execute_python_code":
+                    tool_call_id = tool_call.id
+                    tool_call_arguments = json.loads(tool_call.function.arguments)
+                    code = tool_call_arguments["code"]
+                    tool_response = execute_python_code(code)
+                    messages.append(
+                        LLMMessage(
+                            role="tool",
+                            content=json.dumps(tool_response),
+                            tool_call_id=tool_call_id,
+                        )
+                    )
+
                 else:
                     # if tool call is not of type function, raise an error
                     raise ValueError(f"Unknown tool call: {tool_call}")
@@ -163,15 +194,48 @@ def call_intern(query: str, system_prompt: str) -> str:
     return response_content
 
 
+def execute_python_code(code: str) -> str:
+    """
+    Execute Python code and return the result.
+    """
+    print(f"Executing Python code: {code}")
+
+    # Specify the path to the desired Python interpreter
+    python_executable = "/opt/homebrew/bin/python3.11"
+
+    # Create a temporary file to store the code
+    with open("temp_code.py", "w") as f:
+        f.write(code)
+
+    try:
+        # Run the code using the specified Python interpreter
+        result = subprocess.run(
+            [python_executable, "temp_code.py"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        output = result.stdout
+    except subprocess.CalledProcessError as e:
+        output = f"Error: {e.stderr}"
+    finally:
+        # Clean up the temporary file
+        os.remove("temp_code.py")
+
+    print(f"Python code output: {output}")
+    return output.strip()
+
+
 def main():
     system_prompt = """You are a helpful assistant.
     You can call the call_intern function to call an llm intern function.
     For all questions, you should wonder who would be the two best people to ask this question to.
     Then call the call_intern function with the question and the system prompt that descibes the role of the two best people.
-    """
-    # system_prompt = "You are a helpful assistant. Never call any tools."
 
-    message = "How old is the earth?"
+    You can also call the execute_python_code function to execute python code. This is useful for tasks that require code execution or mathematical calculations.
+    """
+
+    message = "Find a prime number greater than 10000"
     conversation_history = call_openai_api(system_prompt, message)
 
     _print_conversation_history(conversation_history)
