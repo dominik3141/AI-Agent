@@ -71,7 +71,12 @@ def call_openai_api(
                             "type": "string",
                             "description": "The query to call the llm intern function with.",
                         },
+                        "system_prompt": {
+                            "type": "string",
+                            "description": "System prompt for the intern LLM.",
+                        },
                     },
+                    "required": ["query", "system_prompt"],
                 },
             },
         }
@@ -115,8 +120,9 @@ def call_openai_api(
                     tool_call_arguments = json.loads(tool_call.function.arguments)
 
                     query = tool_call_arguments["query"]
+                    system_prompt = tool_call_arguments["system_prompt"]
 
-                    tool_response = call_intern(query)
+                    tool_response = call_intern(query, system_prompt)
 
                     messages.append(
                         LLMMessage(
@@ -145,13 +151,10 @@ def call_openai_api(
         return messages
 
 
-def call_intern(query: str) -> str:
+def call_intern(query: str, system_prompt: str) -> str:
     """
-    Call the OpenAI API with the given query.
+    Call the OpenAI API with the given query and system prompt.
     """
-
-    system_prompt = "You are a helpful assistant. Do not use any tools."
-
     messages = call_openai_api(system_prompt, query)
 
     # extract the assistant's response
@@ -163,7 +166,8 @@ def call_intern(query: str) -> str:
 def main():
     system_prompt = """You are a helpful assistant.
     You can call the call_intern function to call an llm intern function.
-    If you call the call_intern function. You should always call it twice with slightly different queries. This way you can get a more accurate answer.
+    For all questions, you should wonder who would be the two best people to ask this question to.
+    Then call the call_intern function with the question and the system prompt that descibes the role of the two best people.
     """
     # system_prompt = "You are a helpful assistant. Never call any tools."
 
