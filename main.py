@@ -264,11 +264,20 @@ def write_conversation_to_json(conversation_history: LLM_Conversation, query: st
         ],
     }
 
+    # Create a 'conversations' folder if it doesn't exist
+    conversations_folder = "conversations"
+    os.makedirs(conversations_folder, exist_ok=True)
+
+    # Generate filename with timestamp
     filename = f"conversation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    with open(filename, "w") as f:
+
+    # Full path for the file
+    file_path = os.path.join(conversations_folder, filename)
+
+    with open(file_path, "w") as f:
         json.dump(output, f, indent=2)
 
-    return filename
+    return file_path
 
 
 def main():
