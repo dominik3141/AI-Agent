@@ -25,6 +25,7 @@ openai_model = "gpt-4o-mini"
 
 
 def _print_conversation_history(conversation_history: LLM_Conversation):
+    print(f"{'=' * 120}")
     for msg in conversation_history:
         print(
             f"Role: {msg.role}\n"
@@ -85,7 +86,12 @@ def call_openai_api(
             "type": "function",
             "function": {
                 "name": "execute_python_code",
-                "description": "Execute Python code and return the result. Remember to always use print() in your code to return the result.",
+                "description": """Execute Python code and return the result.
+
+                IMPORTANT!:
+                Remember to always use print() in your code to return the result.
+                If you don't do this, the result will not be returned.
+                """,
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -233,9 +239,12 @@ def main():
     Then call the call_intern function with the question and the system prompt that descibes the role of the two best people.
 
     You can also call the execute_python_code function to execute python code. This is useful for tasks that require code execution or mathematical calculations.
+    IMPORTANT!:
+    Remember to always use print() in your code to return the result.
+    If you don't do this, the result will not be returned.
     """
 
-    message = "Find a prime number greater than 10000"
+    message = "How long does it take for a penny to fall 100 feet?"
     conversation_history = call_openai_api(system_prompt, message)
 
     _print_conversation_history(conversation_history)
