@@ -109,6 +109,7 @@
             color: #666;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
@@ -173,7 +174,7 @@
                 messageDiv.className = `message ${msg.role}`;
                 messageDiv.innerHTML = `
                     <h3>${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}</h3>
-                    <pre>${escapeHtml(msg.content || '')}</pre>
+                    <div>${marked.parse(escapeHtml(msg.content || ''))}</div>
                 `;
 
                 if (msg.tool_calls) {
