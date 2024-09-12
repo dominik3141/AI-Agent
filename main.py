@@ -375,6 +375,7 @@ def write_conversation_to_json(conversation_history: LLM_Conversation, query: st
     output = {
         "timestamp": datetime.now().isoformat(),
         "query": query,
+        "model": openai_model,  # Add the model information
         "conversation": [
             {
                 "role": msg.role,

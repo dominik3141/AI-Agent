@@ -168,6 +168,7 @@
             // Display statistics
             statsDiv.innerHTML = `
                 <h2>Statistics</h2>
+                ${data.model ? `<p>Model: ${escapeHtml(data.model)}</p>` : ''}
                 <p>Total messages: ${stats.totalMessages}</p>
                 <p>Total tool calls: ${stats.totalToolCalls}</p>
                 <h3>Tool calls breakdown:</h3>
