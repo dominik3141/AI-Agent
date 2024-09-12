@@ -103,6 +103,11 @@
             font-style: italic;
             color: #7f8c8d;
         }
+
+        .tool-call-id {
+            font-size: 12px;
+            color: #666;
+        }
     </style>
 </head>
 
@@ -184,7 +189,7 @@
                 }
 
                 if (msg.tool_call_id) {
-                    messageDiv.innerHTML += `<p>Tool Call ID: ${escapeHtml(msg.tool_call_id)}</p>`;
+                    messageDiv.innerHTML += `<p class="tool-call-id">Tool Call ID: ${escapeHtml(msg.tool_call_id)}</p>`;
                 }
 
                 conversationDiv.appendChild(messageDiv);
