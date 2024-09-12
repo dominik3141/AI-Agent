@@ -63,7 +63,7 @@
         }
 
         .tool-call {
-            background-color: #f9f2f4;
+            background-color: #f0f0f0;
             border-left: 5px solid #9b59b6;
             margin-top: 10px;
             padding: 10px;
@@ -108,6 +108,20 @@
             font-size: 12px;
             color: #666;
         }
+
+        pre code {
+            display: block;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -119,6 +133,12 @@
     <div id="conversation"></div>
 
     <script>
+        function decodeHtmlEntities(text) {
+            const textArea = document.createElement('textarea');
+            textArea.innerHTML = text;
+            return textArea.value;
+        }
+
         document.getElementById('fileInput').addEventListener('change', function (e) {
             const file = e.target.files[0];
             const reader = new FileReader();
@@ -172,18 +192,28 @@
             data.conversation.forEach(msg => {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${msg.role}`;
+
+                let content = msg.content || '';
+
+                // If the message is from a tool, wrap the content in a code block
+                if (msg.role === 'tool') {
+                    // Decode HTML entities and format as code
+                    content = '```\n' + decodeHtmlEntities(content) + '\n```';
+                }
+
                 messageDiv.innerHTML = `
                     <h3>${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}</h3>
-                    <div>${marked.parse(escapeHtml(msg.content || ''))}</div>
+                    <div>${marked.parse(content)}</div>
                 `;
 
                 if (msg.tool_calls) {
                     messageDiv.innerHTML += `<h4>Tool Calls:</h4>`;
                     msg.tool_calls.forEach(tool_call => {
+                        const decodedArgs = decodeHtmlEntities(tool_call.function.arguments);
                         messageDiv.innerHTML += `
                             <div class="tool-call">
-                                <p>Function: ${escapeHtml(tool_call.function.name)}</p>
-                                <pre>Arguments: ${escapeHtml(tool_call.function.arguments)}</pre>
+                                <p>Function: ${tool_call.function.name}</p>
+                                <pre><code>${decodedArgs}</code></pre>
                             </div>
                         `;
                     });
