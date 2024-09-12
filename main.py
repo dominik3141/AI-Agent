@@ -8,6 +8,7 @@ import argparse
 from datetime import datetime
 from openai.types.chat import ChatCompletionMessageToolCall
 import platform
+from tools import get_perplexity_results, get_bing_search_results
 
 
 @dataclass
@@ -125,6 +126,44 @@ def call_openai_api(
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_perplexity_results",
+                "description": "Get results from Perplexity.ai for a given query.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The query to search for on Perplexity.ai",
+                        },
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_bing_search_results",
+                "description": "Get results from Bing Search API for a given query.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The query to search for on Bing",
+                        },
+                        "count": {
+                            "type": "integer",
+                            "description": "The number of results to return (default is 5)",
+                        },
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
     ]
 
     try:
@@ -157,10 +196,10 @@ def call_openai_api(
 
         if assistant_message.tool_calls:
             for tool_call in assistant_message.tool_calls:
-                if (
-                    tool_call.type == "function"
-                    and tool_call.function.name == "call_intern"
-                ):
+                if tool_call.type != "function":
+                    raise ValueError(f"Unknown tool call: {tool_call}")
+
+                if tool_call.function.name == "call_intern":
                     tool_call_id = tool_call.id
                     tool_call_arguments = json.loads(tool_call.function.arguments)
 
@@ -197,6 +236,33 @@ def call_openai_api(
                     tool_call_arguments = json.loads(tool_call.function.arguments)
                     command = tool_call_arguments["command"]
                     tool_response = execute_command(command)
+                    messages.append(
+                        LLMMessage(
+                            role="tool",
+                            content=json.dumps(tool_response),
+                            tool_call_id=tool_call_id,
+                        )
+                    )
+
+                elif tool_call.function.name == "get_perplexity_results":
+                    tool_call_id = tool_call.id
+                    tool_call_arguments = json.loads(tool_call.function.arguments)
+                    query = tool_call_arguments["query"]
+                    tool_response = get_perplexity_results(query)
+                    messages.append(
+                        LLMMessage(
+                            role="tool",
+                            content=json.dumps(tool_response),
+                            tool_call_id=tool_call_id,
+                        )
+                    )
+
+                elif tool_call.function.name == "get_bing_search_results":
+                    tool_call_id = tool_call.id
+                    tool_call_arguments = json.loads(tool_call.function.arguments)
+                    query = tool_call_arguments["query"]
+                    count = tool_call_arguments.get("count", 5)
+                    tool_response = get_bing_search_results(query, count)
                     messages.append(
                         LLMMessage(
                             role="tool",
@@ -368,7 +434,6 @@ def main():
     "pip3.11 install package_name"
     For example, to install the 'requests' package, you would use:
     "pip3.11 install requests"
-    Make sure to install any necessary packages before using them in your Python code.
     """
 
     conversation_history = call_openai_api(system_prompt, args.query)
